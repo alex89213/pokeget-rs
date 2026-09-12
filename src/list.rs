@@ -1,5 +1,3 @@
-#![warn(clippy::all, clippy::pedantic, clippy::nursery, clippy::restriction)]
-
 use std::io::Cursor;
 
 use crate::pokemon::Region;
@@ -20,7 +18,7 @@ pub struct List {
 impl List {
     /// Reads a new [`List`] from `data/names.csv`.
     pub fn read() -> Self {
-        const FILE: &'static str = include_str!("../data/names.csv");
+        const FILE: &str = include_str!("../data/names.csv");
 
         let mut reader = csv::ReaderBuilder::new()
             .has_headers(false)
