@@ -119,7 +119,8 @@ impl List {
             .collect()
     }
 
-    /// Every form suffix present in the embedded sprites, sorted.
+    /// Every form suffix present in the embedded sprites, deduplicated and
+    /// sorted.
     pub fn forms(&self) -> Vec<String> {
         Data::iter()
             .filter_map(|path| {

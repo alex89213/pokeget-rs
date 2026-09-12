@@ -12,7 +12,7 @@ pub enum ListTarget {
     /// Every region that can be used in place of a pokemon.
     Regions,
 
-    /// Every form that `--form` accepts.
+    /// Every form suffix present in the sprite set.
     Forms,
 }
 

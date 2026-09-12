@@ -82,6 +82,16 @@ Remove-Item Env:\COMPLETE
 
 `pokeget kanto`
 
+This picks a random pokemon from that region's dex, including kanto, johto,
+hoenn, sinnoh, unova, kalos, alola, galar, and hisui. Some picks come back as
+a regional form, such as `raichu-alola`, since those forms are part of the
+region's pool.
+
+#### Listing what's available
+
+`pokeget --list` prints every pokemon name. Pass `pokemon`, `regions`, or
+`forms` to list just one of those, for example `pokeget --list regions`.
+
 ## Installation
 
 ### Cargo *(recommended)*

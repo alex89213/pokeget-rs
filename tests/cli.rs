@@ -97,5 +97,5 @@ fn a_registration_script_is_printed_when_complete_is_set() {
         .expect("failed to run pokeget");
 
     assert!(output.status.success());
-    assert!(stdout(&output).contains("complete"));
+    assert!(stdout(&output).contains("_clap_complete_pokeget"));
 }
