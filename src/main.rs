@@ -1,6 +1,6 @@
 //! Display pokemon sprites in your terminal.
 
-use clap::Parser;
+use clap::{CommandFactory, Parser};
 use pokeget::cli::{Args, ListTarget};
 use pokeget::list::List;
 use pokeget::pokemon::{Attributes, Pokemon, Region};
@@ -8,6 +8,9 @@ use pokeget::sprites;
 use std::process::exit;
 
 fn main() {
+    // Returns early when the shell is asking for completions.
+    clap_complete::CompleteEnv::with_factory(Args::command).complete();
+
     let list = List::read();
     let args = Args::parse();
 

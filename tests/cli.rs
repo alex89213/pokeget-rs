@@ -88,3 +88,14 @@ fn list_forms_includes_the_regional_ones() {
     assert!(output.status.success());
     assert!(stdout(&output).lines().any(|line| line == "alola"));
 }
+
+#[test]
+fn a_registration_script_is_printed_when_complete_is_set() {
+    let output = Command::new(env!("CARGO_BIN_EXE_pokeget"))
+        .env("COMPLETE", "bash")
+        .output()
+        .expect("failed to run pokeget");
+
+    assert!(output.status.success());
+    assert!(stdout(&output).contains("complete"));
+}

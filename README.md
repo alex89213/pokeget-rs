@@ -27,6 +27,43 @@ This makes your shell initialization practically instant, but obviously
 won't work with random pokemon. pokeget is already fairly fast,
 so using it on shell initialization is also not a very large bottleneck.
 
+### Shell completion
+
+pokeget completes pokemon names, regions, and flags. Add the line for your
+shell to its startup file.
+
+Bash, in `.bashrc`:
+
+```sh
+source <(COMPLETE=bash pokeget)
+```
+
+Zsh, in `.zshrc`:
+
+```sh
+source <(COMPLETE=zsh pokeget)
+```
+
+Fish, in `~/.config/fish/config.fish`:
+
+```fish
+COMPLETE=fish pokeget | source
+```
+
+Elvish, in `~/.config/elvish/rc.elv`:
+
+```elvish
+eval (E:COMPLETE=elvish pokeget | slurp)
+```
+
+PowerShell, in `$PROFILE`:
+
+```powershell
+$env:COMPLETE = "powershell"
+pokeget | Out-String | Invoke-Expression
+Remove-Item Env:\COMPLETE
+```
+
 ### Examples
 
 #### Using multiple pokemon
