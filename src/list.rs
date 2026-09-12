@@ -315,13 +315,12 @@ mod tests {
     #[test]
     fn hisui_picks_come_from_the_hisui_dex() {
         let list = List::read();
+        let pool = list.region_pool(Region::Hisui);
 
-        for _ in 0..500 {
-            let filename = list.get_by_region(Region::Hisui);
-
+        for filename in pool {
             // Task 7 substitutes 16 species for their hisui-suffixed variant,
-            // so a pick may not appear literally in `list.hisui()`. Strip the
-            // suffix back off before checking dex membership.
+            // so a pool entry may not appear literally in `list.hisui()`.
+            // Strip the suffix back off before checking dex membership.
             let base = filename.strip_suffix("-hisui").unwrap_or(&filename);
 
             assert!(
@@ -383,12 +382,8 @@ mod tests {
         let list = List::read();
 
         // 0-based index ranges, so Kanto is #1 to #151 at indices 0 to 150.
-        //
-        // Alola and Galar are covered by `region_pools_include_that_regions_forms`
-        // instead: since Task 7, their pools include form filenames such as
-        // `raichu-alola` that are not keys in `ids`, so this id-range check no
-        // longer applies to them. Hisui was never covered here; it has its own
-        // `hisui_picks_come_from_the_hisui_dex` test.
+        // Hisui is not a contiguous range, so it has its own
+        // `hisui_picks_come_from_the_hisui_dex` test instead.
         let regions = [
             (Region::Kanto, 0..=150),
             (Region::Johto, 151..=250),
@@ -396,20 +391,26 @@ mod tests {
             (Region::Sinnoh, 386..=492),
             (Region::Unova, 493..=648),
             (Region::Kalos, 649..=720),
+            (Region::Alola, 721..=808),
+            (Region::Galar, 809..=897),
         ];
 
         for (region, range) in regions {
-            for _ in 0..500 {
-                let filename = list.get_by_region(region);
-                let id = *list
+            let pool = list.region_pool(region);
+
+            for filename in pool {
+                let in_range = list
                     .ids
                     .get_by_right(&filename)
-                    .unwrap_or_else(|| panic!("{filename} is not a known pokemon"));
+                    .is_some_and(|id| range.contains(id));
+
+                let is_regional_form = region
+                    .suffix()
+                    .is_some_and(|suffix| filename.ends_with(&format!("-{suffix}")));
 
                 assert!(
-                    range.contains(&id),
-                    "{region:?} produced {filename} (#{})",
-                    id + 1
+                    in_range || is_regional_form,
+                    "{region:?} produced {filename}"
                 );
             }
         }
