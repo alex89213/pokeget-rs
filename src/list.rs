@@ -90,3 +90,21 @@ impl List {
         self.ids.get_by_left(&idx).unwrap().clone()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::List;
+
+    #[test]
+    fn nidoran_ids_match_the_pokedex() {
+        let list = List::read();
+
+        // #29 is Nidoran female and #32 is Nidoran male. `ids` is 0-based,
+        // so those are indices 28 and 31.
+        assert_eq!(list.get_by_id(28).map(String::as_str), Some("nidoran-f"));
+        assert_eq!(list.get_by_id(31).map(String::as_str), Some("nidoran-m"));
+
+        assert_eq!(list.format_name("nidoran-f"), "Nidoran-F");
+        assert_eq!(list.format_name("nidoran-m"), "Nidoran-M");
+    }
+}
