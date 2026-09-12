@@ -8,7 +8,7 @@ use crate::{cli::Args, list::List, Data};
 const DEFAULT_SHINY_RATE: u32 = 8192;
 
 /// Enum used to store each region
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum Region {
     Kanto,
     Johto,

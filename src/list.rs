@@ -71,27 +71,33 @@ impl List {
         self.ids.get_by_left(&idx).unwrap().clone()
     }
 
-    /// Gets a random pokemon by region
+    /// Gets a random pokemon from a region and returns its filename.
     pub fn get_by_region(&self, region: Region) -> String {
-        let region = match region {
-            Region::Kanto => 0..=151,
-            Region::Johto => 152..=251,
-            Region::Hoenn => 252..=386,
-            Region::Sinnoh => 387..=493,
-            Region::Unova => 494..=649,
-            Region::Kalos => 650..=721,
-            Region::Alola => 722..=809,
-            Region::Galar => 810..=905,
+        // Index ranges, not pokedex numbers: index 0 is #1.
+        let range = match region {
+            Region::Kanto => 0..=150,
+            Region::Johto => 151..=250,
+            Region::Hoenn => 251..=385,
+            Region::Sinnoh => 386..=492,
+            Region::Unova => 493..=648,
+            Region::Kalos => 649..=720,
+            Region::Alola => 721..=808,
+            Region::Galar => 809..=904,
         };
 
-        let idx = rand::random_range(region);
-        self.ids.get_by_left(&idx).unwrap().clone()
+        let idx = rand::random_range(range);
+
+        self.ids
+            .get_by_left(&idx)
+            .expect("region index is inside the list")
+            .clone()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::List;
+    use crate::pokemon::Region;
     use crate::Data;
 
     #[test]
@@ -135,6 +141,39 @@ mod tests {
             let path = format!("regular/{filename}.png");
 
             assert!(Data::get(&path).is_some(), "missing sprite: {path}");
+        }
+    }
+
+    #[test]
+    fn region_picks_stay_inside_their_region() {
+        let list = List::read();
+
+        // 0-based index ranges, so Kanto is #1 to #151 at indices 0 to 150.
+        let regions = [
+            (Region::Kanto, 0..=150),
+            (Region::Johto, 151..=250),
+            (Region::Hoenn, 251..=385),
+            (Region::Sinnoh, 386..=492),
+            (Region::Unova, 493..=648),
+            (Region::Kalos, 649..=720),
+            (Region::Alola, 721..=808),
+            (Region::Galar, 809..=904),
+        ];
+
+        for (region, range) in regions {
+            for _ in 0..500 {
+                let filename = list.get_by_region(region);
+                let id = *list
+                    .ids
+                    .get_by_right(&filename)
+                    .unwrap_or_else(|| panic!("{filename} is not a known pokemon"));
+
+                assert!(
+                    range.contains(&id),
+                    "{region:?} produced {filename} (#{})",
+                    id + 1
+                );
+            }
         }
     }
 }
