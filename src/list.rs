@@ -107,6 +107,40 @@ impl List {
         &self.hisui
     }
 
+    /// Every display name, in pokedex order.
+    pub fn names(&self) -> &[String] {
+        &self.names
+    }
+
+    /// Every filename, in pokedex order.
+    pub fn filenames(&self) -> Vec<&String> {
+        (0..self.names.len())
+            .filter_map(|id| self.ids.get_by_left(&id))
+            .collect()
+    }
+
+    /// Every form suffix present in the embedded sprites, sorted.
+    pub fn forms(&self) -> Vec<String> {
+        Data::iter()
+            .filter_map(|path| {
+                let file = path.strip_prefix("regular/")?.strip_suffix(".png")?;
+
+                // Skip the female/ subdirectory, and skip filenames that are
+                // themselves a pokemon, so porygon-z does not become a form
+                // called `z`.
+                if file.contains('/') || self.ids.get_by_right(file).is_some() {
+                    return None;
+                }
+
+                let (_, form) = self.split_form(file)?;
+
+                Some(form.to_owned())
+            })
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect()
+    }
+
     /// Gets a random pokemon & returns it's filename.
     pub fn random(&self) -> String {
         let idx = rand::random_range(0..self.ids.len());
@@ -399,5 +433,50 @@ mod tests {
         assert_eq!(list.format_name("ho-oh"), "Ho-Oh");
         assert_eq!(list.format_name("jangmo-o"), "Jangmo-o");
         assert_eq!(list.format_name("nidoran-f"), "Nidoran-F");
+    }
+
+    #[test]
+    fn lists_every_pokemon_in_dex_order() {
+        let list = List::read();
+
+        assert_eq!(list.names().len(), 905);
+        assert_eq!(list.names()[0], "Bulbasaur");
+        assert_eq!(list.names()[904], "Enamorus");
+
+        assert_eq!(list.filenames().len(), 905);
+        assert_eq!(list.filenames()[0], "bulbasaur");
+    }
+
+    #[test]
+    fn lists_real_forms_and_not_fragments_of_names() {
+        let list = List::read();
+        let forms = list.forms();
+
+        for expected in ["alola", "galar", "hisui", "mega", "mega-x", "gmax"] {
+            assert!(
+                forms.contains(&expected.to_owned()),
+                "missing form: {expected}"
+            );
+        }
+
+        // Only `oh` and `mime` work as sentinels for mis-splitting: `ho-oh` and
+        // `mr-mime` are themselves name table entries, so nothing else can
+        // produce those strings. `f`, `z` and `o` cannot be used the same way,
+        // because Unown ships a sprite per letter and those are real forms.
+        for fragment in ["oh", "mime"] {
+            assert!(
+                !forms.contains(&fragment.to_owned()),
+                "bogus form: {fragment}"
+            );
+        }
+
+        // The Unown letters are real forms, and their presence also shows the
+        // name table guard does not over-exclude.
+        for letter in ["b", "f", "o", "z"] {
+            assert!(
+                forms.contains(&letter.to_owned()),
+                "missing unown form: {letter}"
+            );
+        }
     }
 }

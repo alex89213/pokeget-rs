@@ -1,10 +1,27 @@
-use clap::Parser;
+use clap::{Parser, ValueEnum};
+
+/// What `--list` should print.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum)]
+pub enum ListTarget {
+    /// Every pokemon, in pokedex order.
+    Pokemon,
+
+    /// Every region that can be used in place of a pokemon.
+    Regions,
+
+    /// Every form that `--form` accepts.
+    Forms,
+}
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 pub struct Args {
     /// The pokemon to display, use "random" to get a random pokemon, use a region to get a random pokemon from that region
     pub pokemon: Vec<String>,
+
+    /// List the available pokemon, regions, or forms, then exit
+    #[arg(long, value_enum, num_args = 0..=1, default_missing_value = "pokemon")]
+    pub list: Option<ListTarget>,
 
     /// Whether to hide the pokemon's name which appears above it
     #[arg(long, default_value_t = false)]

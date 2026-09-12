@@ -16,6 +16,10 @@ fn stderr(output: &Output) -> String {
     String::from_utf8_lossy(&output.stderr).into_owned()
 }
 
+fn stdout(output: &Output) -> String {
+    String::from_utf8_lossy(&output.stdout).into_owned()
+}
+
 #[test]
 fn no_arguments_is_an_error() {
     let output = pokeget(&[]);
@@ -55,4 +59,32 @@ fn the_name_is_printed_to_stderr_by_default() {
 
     assert!(output.status.success());
     assert!(stderr(&output).contains("Pikachu"));
+}
+
+#[test]
+fn list_needs_no_pokemon_argument() {
+    let output = pokeget(&["--list"]);
+
+    assert!(output.status.success());
+    assert!(stdout(&output).lines().count() == 905);
+}
+
+#[test]
+fn list_regions_names_every_region() {
+    let output = pokeget(&["--list", "regions"]);
+
+    assert!(output.status.success());
+
+    let listed: Vec<String> = stdout(&output).lines().map(str::to_owned).collect();
+    assert_eq!(listed.len(), 9);
+    assert!(listed.contains(&"kanto".to_owned()));
+    assert!(listed.contains(&"hisui".to_owned()));
+}
+
+#[test]
+fn list_forms_includes_the_regional_ones() {
+    let output = pokeget(&["--list", "forms"]);
+
+    assert!(output.status.success());
+    assert!(stdout(&output).lines().any(|line| line == "alola"));
 }
