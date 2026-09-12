@@ -94,6 +94,7 @@ impl List {
 #[cfg(test)]
 mod tests {
     use super::List;
+    use crate::Data;
 
     #[test]
     fn nidoran_ids_match_the_pokedex() {
@@ -106,5 +107,36 @@ mod tests {
 
         assert_eq!(list.format_name("nidoran-f"), "Nidoran-F");
         assert_eq!(list.format_name("nidoran-m"), "Nidoran-M");
+    }
+
+    #[test]
+    fn formats_names_that_lost_punctuation_in_their_filename() {
+        let list = List::read();
+
+        assert_eq!(list.format_name("mr-mime"), "Mr. Mime");
+        assert_eq!(list.format_name("farfetchd"), "Farfetch'd");
+        assert_eq!(list.format_name("ho-oh"), "Ho-Oh");
+        assert_eq!(list.format_name("type-null"), "Type: Null");
+    }
+
+    #[test]
+    fn unknown_filenames_are_returned_unchanged() {
+        let list = List::read();
+
+        assert_eq!(list.format_name("notapokemon"), "notapokemon");
+    }
+
+    #[test]
+    fn every_listed_pokemon_has_a_sprite() {
+        let list = List::read();
+
+        assert_eq!(list.names.len(), 905);
+
+        for id in 0..list.names.len() {
+            let filename = list.get_by_id(id).expect("every id has a filename");
+            let path = format!("regular/{filename}.png");
+
+            assert!(Data::get(&path).is_some(), "missing sprite: {path}");
+        }
     }
 }

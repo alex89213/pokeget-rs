@@ -8,7 +8,7 @@ use crate::{cli::Args, list::List, Data};
 const DEFAULT_SHINY_RATE: u32 = 8192;
 
 /// Enum used to store each region
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum Region {
     Kanto,
     Johto,
@@ -23,7 +23,7 @@ pub enum Region {
 /// Enum used to assist parsing user input.
 ///
 /// It can sort all types of inputs, and then evaluate them to a filename.
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum Selection {
     /// When a random pokemon is selected (`0` or `random`).
     Random,
@@ -213,5 +213,90 @@ impl Attributes {
         );
 
         path
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Attributes, Region, Selection};
+
+    fn attributes(form: &str) -> Attributes {
+        Attributes {
+            form: form.to_owned(),
+            female: false,
+            shiny: false,
+        }
+    }
+
+    #[test]
+    fn parses_every_kind_of_argument() {
+        assert_eq!(Selection::parse("1".to_owned()), Selection::DexId(0));
+        assert_eq!(Selection::parse("0".to_owned()), Selection::Random);
+        assert_eq!(Selection::parse("random".to_owned()), Selection::Random);
+        assert_eq!(
+            Selection::parse("KANTO".to_owned()),
+            Selection::Region(Region::Kanto)
+        );
+        assert_eq!(
+            Selection::parse("pikachu".to_owned()),
+            Selection::Name("pikachu".to_owned())
+        );
+    }
+
+    #[test]
+    fn builds_paths_from_attributes() {
+        assert_eq!(
+            attributes("").path("pikachu", false, false),
+            "regular/pikachu.png"
+        );
+        assert_eq!(
+            attributes("mega").path("charizard", false, false),
+            "regular/charizard-mega.png"
+        );
+
+        let shiny = Attributes {
+            form: String::new(),
+            female: false,
+            shiny: true,
+        };
+        assert_eq!(shiny.path("pikachu", false, false), "shiny/pikachu.png");
+
+        let female = Attributes {
+            form: String::new(),
+            female: true,
+            shiny: false,
+        };
+        assert_eq!(
+            female.path("pikachu", false, false),
+            "regular/female/pikachu.png"
+        );
+    }
+
+    #[test]
+    fn strips_punctuation_when_building_paths() {
+        assert_eq!(
+            attributes("").path("Mr. Mime", false, false),
+            "regular/mr-mime.png"
+        );
+        assert_eq!(
+            attributes("").path("Farfetch'd", false, false),
+            "regular/farfetchd.png"
+        );
+        assert_eq!(
+            attributes("").path("Type: Null", false, false),
+            "regular/type-null.png"
+        );
+    }
+
+    #[test]
+    fn forms_are_suppressed_for_random_and_region_picks() {
+        assert_eq!(
+            attributes("mega").path("charizard", true, false),
+            "regular/charizard.png"
+        );
+        assert_eq!(
+            attributes("mega").path("charizard", false, true),
+            "regular/charizard.png"
+        );
     }
 }
