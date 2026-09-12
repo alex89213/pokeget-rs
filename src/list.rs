@@ -1,4 +1,5 @@
 use std::io::Cursor;
+use std::ops::RangeInclusive;
 
 use crate::pokemon::Region;
 use bimap::BiHashMap;
@@ -82,10 +83,13 @@ impl List {
         self.ids.get_by_left(&idx).unwrap().clone()
     }
 
-    /// Gets a random pokemon from a region and returns its filename.
-    pub fn get_by_region(&self, region: Region) -> String {
+    /// The index range covering a region's own species.
+    ///
+    /// Returns `None` for Hisui, whose dex is not contiguous and lives in
+    /// `data/hisui.txt` instead.
+    fn index_range(region: Region) -> Option<RangeInclusive<usize>> {
         // Index ranges, not pokedex numbers: index 0 is #1.
-        let range = match region {
+        Some(match region {
             Region::Kanto => 0..=150,
             Region::Johto => 151..=250,
             Region::Hoenn => 251..=385,
@@ -94,14 +98,25 @@ impl List {
             Region::Kalos => 649..=720,
             Region::Alola => 721..=808,
             Region::Galar => 809..=904,
-        };
+            Region::Hisui => return None,
+        })
+    }
 
-        let idx = rand::random_range(range);
+    /// Every sprite filename a region can produce, in dex order.
+    pub fn region_pool(&self, region: Region) -> Vec<String> {
+        match Self::index_range(region) {
+            Some(range) => range
+                .filter_map(|id| self.ids.get_by_left(&id).cloned())
+                .collect(),
+            None => self.hisui.clone(),
+        }
+    }
 
-        self.ids
-            .get_by_left(&idx)
-            .expect("region index is inside the list")
-            .clone()
+    /// Gets a random pokemon from a region and returns its filename.
+    pub fn get_by_region(&self, region: Region) -> String {
+        let pool = self.region_pool(region);
+
+        pool[rand::random_range(0..pool.len())].clone()
     }
 }
 
@@ -164,6 +179,19 @@ mod tests {
         for filename in list.hisui() {
             let path = format!("regular/{filename}.png");
             assert!(Data::get(&path).is_some(), "missing sprite: {path}");
+        }
+    }
+
+    #[test]
+    fn hisui_picks_come_from_the_hisui_dex() {
+        let list = List::read();
+
+        for _ in 0..500 {
+            let filename = list.get_by_region(Region::Hisui);
+            assert!(
+                list.hisui().contains(&filename),
+                "{filename} is not in the hisui dex"
+            );
         }
     }
 
