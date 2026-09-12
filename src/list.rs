@@ -119,9 +119,22 @@ impl List {
             .collect()
     }
 
+    /// Whether a filename names a pokemon rather than one of its forms.
+    ///
+    /// `porygon-z` and `nidoran-f` are pokemon; `shaymin-sky` is a form.
+    pub fn is_pokemon(&self, filename: &str) -> bool {
+        self.ids.get_by_right(filename).is_some()
+    }
+
     /// Every form suffix present in the embedded sprites, deduplicated and
     /// sorted.
     pub fn forms(&self) -> Vec<String> {
+        self.collect_forms(|_| true)
+    }
+
+    /// The form suffixes whose base name satisfies `keep`, deduplicated and
+    /// sorted.
+    fn collect_forms(&self, keep: impl Fn(&str) -> bool) -> Vec<String> {
         Data::iter()
             .filter_map(|path| {
                 let file = path.strip_prefix("regular/")?.strip_suffix(".png")?;
@@ -129,17 +142,26 @@ impl List {
                 // Skip the female/ subdirectory, and skip filenames that are
                 // themselves a pokemon, so porygon-z does not become a form
                 // called `z`.
-                if file.contains('/') || self.ids.get_by_right(file).is_some() {
+                if file.contains('/') || self.is_pokemon(file) {
                     return None;
                 }
 
-                let (_, form) = self.split_form(file)?;
+                let (base, form) = self.split_form(file)?;
 
-                Some(form.to_owned())
+                keep(base).then(|| form.to_owned())
             })
             .collect::<BTreeSet<_>>()
             .into_iter()
             .collect()
+    }
+
+    /// Every form suffix belonging to one pokemon, deduplicated and sorted.
+    ///
+    /// `filename` is a base name such as `shaymin`, and the result holds bare
+    /// suffixes such as `sky`. Filenames that are themselves a pokemon are
+    /// skipped, so `porygon` has no forms even though `porygon-z` is a sprite.
+    pub fn forms_for(&self, filename: &str) -> Vec<String> {
+        self.collect_forms(|base| base == filename)
     }
 
     /// Gets a random pokemon & returns it's filename.
@@ -508,5 +530,62 @@ mod tests {
                 "missing unown form: {letter}"
             );
         }
+    }
+
+    #[test]
+    fn knows_which_filenames_are_pokemon() {
+        let list = List::read();
+
+        assert!(list.is_pokemon("bulbasaur"));
+        assert!(list.is_pokemon("mr-mime"));
+
+        // Real pokemon whose names look like forms.
+        assert!(list.is_pokemon("porygon-z"));
+        assert!(list.is_pokemon("nidoran-f"));
+
+        // A form sprite is not itself a pokemon.
+        assert!(!list.is_pokemon("shaymin-sky"));
+        assert!(!list.is_pokemon("notapokemon"));
+    }
+
+    #[test]
+    fn lists_the_forms_of_one_pokemon() {
+        let list = List::read();
+
+        assert_eq!(list.forms_for("shaymin"), ["sky"]);
+        assert_eq!(list.forms_for("kyogre"), ["primal"]);
+        assert_eq!(list.forms_for("deoxys"), ["attack", "defense", "speed"]);
+
+        // The species with the most forms in the sprite set.
+        assert_eq!(list.forms_for("unown").len(), 27);
+        assert_eq!(list.forms_for("arceus").len(), 18);
+    }
+
+    #[test]
+    fn a_pokemon_with_no_forms_lists_nothing() {
+        let list = List::read();
+
+        assert!(list.forms_for("bulbasaur").is_empty());
+
+        // `porygon-z` is its own pokemon, not a form of porygon. This is the
+        // same guard `forms` relies on.
+        assert!(list.forms_for("porygon").is_empty());
+
+        // Likewise nidoran-f and nidoran-m are species, not forms.
+        assert!(list.forms_for("nidoran").is_empty());
+    }
+
+    #[test]
+    fn forms_for_only_matches_the_whole_base_name() {
+        let list = List::read();
+
+        // `mr-mime-galar` belongs to mr-mime, not to a pokemon called `mr`.
+        assert_eq!(list.forms_for("mr-mime"), ["galar"]);
+
+        // Nested form names split on the species, not the last hyphen.
+        assert!(list
+            .forms_for("alcremie")
+            .iter()
+            .any(|form| form.starts_with("vanilla-cream")));
     }
 }

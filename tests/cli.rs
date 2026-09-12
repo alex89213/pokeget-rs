@@ -99,3 +99,57 @@ fn a_registration_script_is_printed_when_complete_is_set() {
     assert!(output.status.success());
     assert!(stdout(&output).contains("_clap_complete_pokeget"));
 }
+
+#[test]
+fn list_forms_narrows_to_a_named_pokemon() {
+    let output = pokeget(&["--list", "forms", "shaymin"]);
+
+    assert!(output.status.success());
+    assert_eq!(stdout(&output).trim(), "sky");
+}
+
+#[test]
+fn list_forms_accepts_a_dex_id() {
+    // #386 is Deoxys, which has three alternate forms.
+    let output = pokeget(&["--list", "forms", "386"]);
+
+    assert!(output.status.success());
+
+    let forms: Vec<String> = stdout(&output).lines().map(str::to_owned).collect();
+    assert_eq!(forms, ["attack", "defense", "speed"]);
+}
+
+#[test]
+fn a_pokemon_with_no_forms_prints_nothing_to_stdout() {
+    let output = pokeget(&["--list", "forms", "bulbasaur"]);
+
+    assert!(output.status.success());
+    assert!(output.stdout.is_empty());
+    assert!(stderr(&output).contains("no alternate forms"));
+}
+
+#[test]
+fn list_forms_rejects_an_unknown_pokemon() {
+    let output = pokeget(&["--list", "forms", "notapokemon"]);
+
+    assert!(!output.status.success());
+    assert!(stderr(&output).contains("notapokemon"));
+}
+
+#[test]
+fn a_pokemon_cannot_be_combined_with_the_other_list_targets() {
+    for target in ["pokemon", "regions"] {
+        let output = pokeget(&["--list", target, "pikachu"]);
+
+        assert!(!output.status.success(), "--list {target} pikachu");
+        assert!(stderr(&output).contains("only --list forms"));
+    }
+}
+
+#[test]
+fn list_forms_without_a_pokemon_still_lists_everything() {
+    let output = pokeget(&["--list", "forms"]);
+
+    assert!(output.status.success());
+    assert!(stdout(&output).lines().count() > 200);
+}

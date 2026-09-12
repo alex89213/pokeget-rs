@@ -23,7 +23,8 @@ pub struct Args {
     #[arg(add = ArgValueCandidates::new(pokemon_candidates))]
     pub pokemon: Vec<String>,
 
-    /// List the available pokemon, regions, or forms, then exit
+    /// List the available pokemon, regions, or forms, then exit. Name a pokemon
+    /// alongside `--list forms` to see just that pokemon's forms
     #[arg(long, value_enum, num_args = 0..=1, default_missing_value = "pokemon")]
     pub list: Option<ListTarget>,
 

@@ -15,7 +15,12 @@ fn main() {
     let args = Args::parse();
 
     if let Some(target) = args.list {
-        for line in listing(&list, target) {
+        let lines = listing(&list, target, &args.pokemon).unwrap_or_else(|message| {
+            eprintln!("{message}");
+            exit(1)
+        });
+
+        for line in lines {
             println!("{line}");
         }
 
@@ -44,13 +49,58 @@ fn main() {
 }
 
 /// Renders the output of `--list`.
-fn listing(list: &List, target: ListTarget) -> Vec<String> {
+///
+/// `pokemon` is the positional argument. Only `--list forms` accepts one, and
+/// it narrows the output to that pokemon's forms.
+fn listing(list: &List, target: ListTarget, pokemon: &[String]) -> Result<Vec<String>, String> {
+    if target != ListTarget::Forms && !pokemon.is_empty() {
+        return Err("only --list forms takes a pokemon".to_owned());
+    }
+
     match target {
-        ListTarget::Pokemon => list.names().to_vec(),
-        ListTarget::Regions => Region::ALL
+        ListTarget::Pokemon => Ok(list.names().to_vec()),
+        ListTarget::Regions => Ok(Region::ALL
             .into_iter()
             .map(|region| region.slug().to_owned())
-            .collect(),
-        ListTarget::Forms => list.forms(),
+            .collect()),
+        ListTarget::Forms => match pokemon {
+            [] => Ok(list.forms()),
+            [name] => forms_of(list, name),
+            _ => Err("--list forms takes at most one pokemon".to_owned()),
+        },
+    }
+}
+
+/// The forms of one pokemon, named by filename or by pokedex ID.
+///
+/// A pokemon with no forms is not an error: it prints nothing to stdout, and
+/// the explanation goes to stderr so that redirecting stdout yields an empty
+/// file rather than prose.
+fn forms_of(list: &List, arg: &str) -> Result<Vec<String>, String> {
+    let filename = resolve(list, arg)?;
+    let forms = list.forms_for(&filename);
+
+    if forms.is_empty() {
+        eprintln!("{} has no alternate forms", list.format_name(&filename));
+    }
+
+    Ok(forms)
+}
+
+/// Resolves a pokedex ID or a name into a sprite filename.
+fn resolve(list: &List, arg: &str) -> Result<String, String> {
+    if let Ok(dex_id) = arg.parse::<usize>() {
+        return list
+            .get_by_id(dex_id.wrapping_sub(1))
+            .cloned()
+            .ok_or_else(|| format!("{arg} is not a valid pokedex ID"));
+    }
+
+    let filename = arg.to_lowercase();
+
+    if list.is_pokemon(&filename) {
+        Ok(filename)
+    } else {
+        Err(format!("{arg} is not a pokemon"))
     }
 }

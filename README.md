@@ -130,6 +130,19 @@ region's pool.
 `pokeget --list` prints every pokemon name. Pass `pokemon`, `regions`, or
 `forms` to list just one of those, for example `pokeget --list regions`.
 
+Naming a pokemon alongside `--list forms` narrows the output to that pokemon,
+which is usually what you want:
+
+```sh
+pokeget --list forms shaymin    # sky
+pokeget --list forms kyogre     # primal
+pokeget --list forms deoxys     # attack, defense, speed
+pokeget --list forms arceus     # all 18 type forms
+```
+
+A pokedex ID works too, so `pokeget --list forms 386` is Deoxys. Feed the
+result straight back in with `--form`, as in `pokeget shaymin --form sky`.
+
 ## Installation
 
 ### Cargo *(recommended)*
