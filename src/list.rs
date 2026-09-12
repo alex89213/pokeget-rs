@@ -448,6 +448,29 @@ mod tests {
     }
 
     #[test]
+    fn the_generator_script_round_trips_the_name_list() {
+        const POKEMON: &str = include_str!("../data/pokemon.txt");
+
+        let list = List::read();
+
+        for (id, display) in POKEMON.lines().enumerate() {
+            // The same transformation scripts/list.py applies.
+            let filename = display
+                .to_lowercase()
+                .replace([' ', '_'], "-")
+                .replace(['.', '\'', ':'], "");
+
+            assert_eq!(
+                list.get_by_id(id).map(String::as_str),
+                Some(filename.as_str()),
+                "pokemon.txt line {} does not regenerate its names.csv row",
+                id + 1
+            );
+            assert_eq!(list.names()[id], display);
+        }
+    }
+
+    #[test]
     fn lists_real_forms_and_not_fragments_of_names() {
         let list = List::read();
         let forms = list.forms();
