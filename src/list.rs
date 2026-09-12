@@ -13,12 +13,16 @@ pub struct List {
 
     /// All the proper, formatted names in order of Pokedex ID.
     names: Vec<String>,
+
+    /// The filenames in the Hisui pokedex, which is not a contiguous range.
+    hisui: Vec<String>,
 }
 
 impl List {
     /// Reads a new [`List`] from `data/names.csv`.
     pub fn read() -> Self {
         const FILE: &str = include_str!("../data/names.csv");
+        const HISUI: &str = include_str!("../data/hisui.txt");
 
         let mut reader = csv::ReaderBuilder::new()
             .has_headers(false)
@@ -36,7 +40,9 @@ impl List {
             names.push(record.0);
         }
 
-        Self { ids, names }
+        let hisui = HISUI.lines().map(str::to_owned).collect();
+
+        Self { ids, names, hisui }
     }
 
     /// Takes a filename and looks up the proper display name.
@@ -63,6 +69,11 @@ impl List {
     /// Gets a pokemon filename by a Dex ID.
     pub fn get_by_id(&self, id: usize) -> Option<&String> {
         self.ids.get_by_left(&id)
+    }
+
+    /// The filenames in the Hisui pokedex, in dex order.
+    pub fn hisui(&self) -> &[String] {
+        &self.hisui
     }
 
     /// Gets a random pokemon & returns it's filename.
@@ -140,6 +151,18 @@ mod tests {
             let filename = list.get_by_id(id).expect("every id has a filename");
             let path = format!("regular/{filename}.png");
 
+            assert!(Data::get(&path).is_some(), "missing sprite: {path}");
+        }
+    }
+
+    #[test]
+    fn the_hisui_dex_resolves_to_sprites() {
+        let list = List::read();
+
+        assert_eq!(list.hisui().len(), 242);
+
+        for filename in list.hisui() {
+            let path = format!("regular/{filename}.png");
             assert!(Data::get(&path).is_some(), "missing sprite: {path}");
         }
     }
