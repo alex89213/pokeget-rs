@@ -8,6 +8,44 @@ A better rust version of pokeget.
 
 For more info, run `pokeget --help`.
 
+## This fork
+
+This is a fork of [talwat/pokeget-rs](https://github.com/talwat/pokeget-rs).
+It carries the following on top of upstream.
+
+### Fixes
+
+- Nidoran was swapped in the name list, so `pokeget 29` showed the male sprite
+  and `pokeget 32` the female one. This is upstream issue #37.
+- Region ranges were written as pokedex numbers but used to index a 0-based
+  map, so every region was shifted up by one. `pokeget kanto` could return
+  Chikorita, and `pokeget galar` panicked on roughly 1 run in 96 by indexing
+  past the end of the list.
+- The galar range ran to #905, seven species past the end of the galar dex at
+  #898 Calyrex. Those seven are Legends: Arceus species and belong to hisui.
+- `scripts/list.py` wrote to a file the crate never read. Pointing it at
+  `names.csv` revealed that regenerating the list degraded two display names,
+  which is fixed as well.
+
+### Features
+
+- `hisui` as a region, covering the 242 species of the Legends: Arceus dex.
+- Region picks can return that region's alternate forms, so `pokeget alola`
+  may give you an Alolan Raichu.
+- Form suffixes appear in the displayed name, so `raichu-alola` prints as
+  `Raichu (Alola)`.
+- `--list` for discovering the available pokemon, regions, and forms.
+- Shell completion for pokemon names and regions. This is upstream issue #21.
+
+### Project
+
+- A test suite, which the crate did not have before.
+- CI running rustfmt, clippy under `-D warnings`, and the tests on every push.
+
+This fork is not published to crates.io, so `cargo install pokeget` gets
+upstream's version rather than this one. Build from source to get these
+changes.
+
 ## Project status
 
 I've decided that while I will keep fixing bugs and so on,
@@ -27,6 +65,43 @@ This makes your shell initialization practically instant, but obviously
 won't work with random pokemon. pokeget is already fairly fast,
 so using it on shell initialization is also not a very large bottleneck.
 
+### Shell completion
+
+pokeget completes pokemon names, regions, and flags. Add the line for your
+shell to its startup file.
+
+Bash, in `.bashrc`:
+
+```sh
+source <(COMPLETE=bash pokeget)
+```
+
+Zsh, in `.zshrc`:
+
+```sh
+source <(COMPLETE=zsh pokeget)
+```
+
+Fish, in `~/.config/fish/config.fish`:
+
+```fish
+COMPLETE=fish pokeget | source
+```
+
+Elvish, in `~/.config/elvish/rc.elv`:
+
+```elvish
+eval (E:COMPLETE=elvish pokeget | slurp)
+```
+
+PowerShell, in `$PROFILE`:
+
+```powershell
+$env:COMPLETE = "powershell"
+pokeget | Out-String | Invoke-Expression
+Remove-Item Env:\COMPLETE
+```
+
 ### Examples
 
 #### Using multiple pokemon
@@ -44,6 +119,16 @@ so using it on shell initialization is also not a very large bottleneck.
 #### Using regions
 
 `pokeget kanto`
+
+This picks a random pokemon from that region's dex, including kanto, johto,
+hoenn, sinnoh, unova, kalos, alola, galar, and hisui. Some picks come back as
+a regional form, such as `raichu-alola`, since those forms are part of the
+region's pool.
+
+#### Listing what's available
+
+`pokeget --list` prints every pokemon name. Pass `pokemon`, `regions`, or
+`forms` to list just one of those, for example `pokeget --list regions`.
 
 ## Installation
 
@@ -70,7 +155,7 @@ yay -S pokeget
 You can also clone the repository and compile manually by doing:
 
 ```sh
-git clone --recurse-submodules https://github.com/talwat/pokeget-rs.git
+git clone --recurse-submodules https://github.com/alex89213/pokeget-rs.git
 cd pokeget-rs
 cargo build --release
 mv target/release/pokeget ~/.local/bin
@@ -98,7 +183,9 @@ fish_add_path <path>
 
 ## Updating
 
-Just rerun `cargo install pokeget` or `git pull` on the repository and then recompile.
+Run `git pull` on the repository and recompile. Remember `git submodule update`
+if the sprite submodule has moved, since the sprites are embedded at compile
+time.
 
 ## Why?
 

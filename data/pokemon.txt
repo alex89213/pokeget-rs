@@ -26,10 +26,10 @@ Pikachu
 Raichu
 Sandshrew
 Sandslash
-Nidoran-M
+Nidoran-F
 Nidorina
 Nidoqueen
-Nidoran-F
+Nidoran-M
 Nidorino
 Nidoking
 Clefairy
@@ -247,7 +247,7 @@ Larvitar
 Pupitar
 Tyranitar
 Lugia
-Ho-oh
+Ho-Oh
 Celebi
 Treecko
 Grovyle
@@ -436,7 +436,7 @@ Skuntank
 Bronzor
 Bronzong
 Bonsly
-Mime Jr
+Mime Jr.
 Happiny
 Chatot
 Spiritomb

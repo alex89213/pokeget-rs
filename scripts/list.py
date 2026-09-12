@@ -6,7 +6,7 @@ names = []
 with open('data/pokemon.txt', 'r') as file:
     names = file.read().splitlines()
 
-with open('data/list.csv', 'w', newline='') as file:
+with open('data/names.csv', 'w', newline='') as file:
     writer = csv.writer(file)
     
     for name in names:

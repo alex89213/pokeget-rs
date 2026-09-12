@@ -1,15 +1,26 @@
 //! Display pokemon sprites in your terminal.
 
-use clap::Parser;
-use pokeget::cli::Args;
+use clap::{CommandFactory, Parser};
+use pokeget::cli::{Args, ListTarget};
 use pokeget::list::List;
-use pokeget::pokemon::{Attributes, Pokemon};
+use pokeget::pokemon::{Attributes, Pokemon, Region};
 use pokeget::sprites;
 use std::process::exit;
 
 fn main() {
+    // Returns early when the shell is asking for completions.
+    clap_complete::CompleteEnv::with_factory(Args::command).complete();
+
     let list = List::read();
     let args = Args::parse();
+
+    if let Some(target) = args.list {
+        for line in listing(&list, target) {
+            println!("{line}");
+        }
+
+        return;
+    }
 
     if args.pokemon.is_empty() {
         eprintln!("you must specify the pokemon you want to display");
@@ -30,4 +41,16 @@ fn main() {
     }
 
     println!("{}", showie::render(&combined));
+}
+
+/// Renders the output of `--list`.
+fn listing(list: &List, target: ListTarget) -> Vec<String> {
+    match target {
+        ListTarget::Pokemon => list.names().to_vec(),
+        ListTarget::Regions => Region::ALL
+            .into_iter()
+            .map(|region| region.slug().to_owned())
+            .collect(),
+        ListTarget::Forms => list.forms(),
+    }
 }
