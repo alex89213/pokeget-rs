@@ -161,7 +161,7 @@ impl List {
             Region::Unova => 493..=648,
             Region::Kalos => 649..=720,
             Region::Alola => 721..=808,
-            Region::Galar => 809..=904,
+            Region::Galar => 809..=897,
             Region::Hisui => return None,
         })
     }
@@ -341,7 +341,12 @@ mod tests {
 
         let galar = list.region_pool(Region::Galar);
         assert!(galar.contains(&"mr-mime-galar".to_owned()));
-        assert_eq!(galar.len(), 96 + 19);
+        assert_eq!(galar.len(), 89 + 19);
+
+        // The galar dex ends at #898 Calyrex. #899-905 are Legends: Arceus
+        // species and belong to hisui.
+        assert!(galar.contains(&"calyrex".to_owned()));
+        assert!(!galar.contains(&"overqwil".to_owned()));
 
         // Every hisui form belongs to a species already in the hisui dex, so
         // the pool stays at 242 with 16 entries swapped for their variant.
