@@ -1,7 +1,9 @@
+use std::collections::BTreeSet;
 use std::io::Cursor;
 use std::ops::RangeInclusive;
 
 use crate::pokemon::Region;
+use crate::Data;
 use bimap::BiHashMap;
 
 /// A parsed representation of `names.csv`.
@@ -102,14 +104,40 @@ impl List {
         })
     }
 
-    /// Every sprite filename a region can produce, in dex order.
+    /// Every sprite filename a region can produce.
+    ///
+    /// This is the region's species with each one replaced by its regional
+    /// variant where a sprite exists, plus every sprite carrying the region's
+    /// suffix. Those two sets overlap for Hisui and are disjoint for Alola and
+    /// Galar, whose regional forms belong to species from earlier regions.
     pub fn region_pool(&self, region: Region) -> Vec<String> {
-        match Self::index_range(region) {
+        let base: Vec<String> = match Self::index_range(region) {
             Some(range) => range
                 .filter_map(|id| self.ids.get_by_left(&id).cloned())
                 .collect(),
             None => self.hisui.clone(),
-        }
+        };
+
+        let Some(suffix) = region.suffix() else {
+            return base;
+        };
+
+        let mut pool: BTreeSet<String> = base
+            .into_iter()
+            .map(|name| {
+                let variant = format!("{name}-{suffix}");
+
+                if sprite_exists(&variant) {
+                    variant
+                } else {
+                    name
+                }
+            })
+            .collect();
+
+        pool.extend(sprites_with_suffix(suffix));
+
+        pool.into_iter().collect()
     }
 
     /// Gets a random pokemon from a region and returns its filename.
@@ -118,6 +146,30 @@ impl List {
 
         pool[rand::random_range(0..pool.len())].clone()
     }
+}
+
+/// Whether a sprite with this filename exists.
+fn sprite_exists(filename: &str) -> bool {
+    Data::get(&format!("regular/{filename}.png")).is_some()
+}
+
+/// Every sprite filename ending in a form suffix, such as `raichu-alola`.
+fn sprites_with_suffix(suffix: &str) -> Vec<String> {
+    let tail = format!("-{suffix}");
+
+    Data::iter()
+        .filter_map(|path| {
+            let file = path.strip_prefix("regular/")?.strip_suffix(".png")?;
+
+            // `file.contains('/')` skips the female/ subdirectory, whose
+            // sprites are reached through --female instead.
+            if file.contains('/') || !file.ends_with(&tail) {
+                return None;
+            }
+
+            Some(file.to_owned())
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -188,10 +240,58 @@ mod tests {
 
         for _ in 0..500 {
             let filename = list.get_by_region(Region::Hisui);
+
+            // Task 7 substitutes 16 species for their hisui-suffixed variant,
+            // so a pick may not appear literally in `list.hisui()`. Strip the
+            // suffix back off before checking dex membership.
+            let base = filename.strip_suffix("-hisui").unwrap_or(&filename);
+
             assert!(
-                list.hisui().contains(&filename),
+                list.hisui().contains(&base.to_owned()),
                 "{filename} is not in the hisui dex"
             );
+        }
+    }
+
+    #[test]
+    fn region_pools_include_that_regions_forms() {
+        let list = List::read();
+
+        let alola = list.region_pool(Region::Alola);
+        assert!(alola.contains(&"raichu-alola".to_owned()));
+        assert_eq!(alola.len(), 88 + 18);
+
+        let galar = list.region_pool(Region::Galar);
+        assert!(galar.contains(&"mr-mime-galar".to_owned()));
+        assert_eq!(galar.len(), 96 + 19);
+
+        // Every hisui form belongs to a species already in the hisui dex, so
+        // the pool stays at 242 with 16 entries swapped for their variant.
+        let hisui = list.region_pool(Region::Hisui);
+        assert!(hisui.contains(&"zorua-hisui".to_owned()));
+        assert!(!hisui.contains(&"zorua".to_owned()));
+        assert_eq!(hisui.len(), 242);
+
+        // Nobles are reachable through --noble, not through a region.
+        assert!(!hisui.contains(&"arcanine-hisui-noble".to_owned()));
+        assert!(!hisui.contains(&"kleavor-noble".to_owned()));
+
+        // Regions with no forms are untouched.
+        assert_eq!(list.region_pool(Region::Kanto).len(), 151);
+    }
+
+    #[test]
+    fn every_region_pool_resolves_to_sprites() {
+        let list = List::read();
+
+        for region in Region::ALL {
+            let pool = list.region_pool(region);
+            assert!(!pool.is_empty(), "{region:?} has an empty pool");
+
+            for filename in pool {
+                let path = format!("regular/{filename}.png");
+                assert!(Data::get(&path).is_some(), "missing sprite: {path}");
+            }
         }
     }
 
@@ -200,6 +300,12 @@ mod tests {
         let list = List::read();
 
         // 0-based index ranges, so Kanto is #1 to #151 at indices 0 to 150.
+        //
+        // Alola and Galar are covered by `region_pools_include_that_regions_forms`
+        // instead: since Task 7, their pools include form filenames such as
+        // `raichu-alola` that are not keys in `ids`, so this id-range check no
+        // longer applies to them. Hisui was never covered here; it has its own
+        // `hisui_picks_come_from_the_hisui_dex` test.
         let regions = [
             (Region::Kanto, 0..=150),
             (Region::Johto, 151..=250),
@@ -207,8 +313,6 @@ mod tests {
             (Region::Sinnoh, 386..=492),
             (Region::Unova, 493..=648),
             (Region::Kalos, 649..=720),
-            (Region::Alola, 721..=808),
-            (Region::Galar, 809..=904),
         ];
 
         for (region, range) in regions {
