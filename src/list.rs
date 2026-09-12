@@ -50,6 +50,9 @@ impl List {
 
     /// Takes a filename and looks up the proper display name.
     ///
+    /// Filenames carrying a form suffix are formatted with the form in
+    /// parentheses, so `raichu-alola` becomes `Raichu (Alola)`.
+    ///
     /// # Examples
     ///
     /// ```
@@ -58,15 +61,40 @@ impl List {
     /// assert_eq!(list.format_name("mr-mime"), "Mr. Mime")
     /// ```
     pub fn format_name(&self, filename: &str) -> String {
-        let Some(id) = self.ids.get_by_right(filename) else {
+        if let Some(name) = self.lookup(filename) {
+            return name;
+        }
+
+        let Some((base, form)) = self.split_form(filename) else {
             return filename.to_owned();
         };
 
-        let Some(name) = self.names.get(*id) else {
+        let Some(name) = self.lookup(base) else {
             return filename.to_owned();
         };
 
-        name.clone()
+        format!("{name} ({})", title_case(form))
+    }
+
+    /// Looks up the display name for an exact filename.
+    fn lookup(&self, filename: &str) -> Option<String> {
+        let id = self.ids.get_by_right(filename)?;
+
+        self.names.get(*id).cloned()
+    }
+
+    /// Splits a filename into its base name and its form.
+    ///
+    /// Hyphens are tried from the right, so the longest known base name wins
+    /// and `mr-mime-galar` splits into `mr-mime` and `galar` rather than `mr`
+    /// and `mime-galar`. Returns `None` when no prefix is a known pokemon,
+    /// which is what keeps `ho-oh` in one piece.
+    fn split_form<'a>(&self, filename: &'a str) -> Option<(&'a str, &'a str)> {
+        filename.rmatch_indices('-').find_map(|(i, _)| {
+            let (base, form) = (&filename[..i], &filename[i + 1..]);
+
+            self.ids.get_by_right(base).map(|_| (base, form))
+        })
     }
 
     /// Gets a pokemon filename by a Dex ID.
@@ -151,6 +179,22 @@ impl List {
 /// Whether a sprite with this filename exists.
 fn sprite_exists(filename: &str) -> bool {
     Data::get(&format!("regular/{filename}.png")).is_some()
+}
+
+/// Capitalizes each hyphen separated word, so `hisui-noble` becomes
+/// `Hisui Noble`.
+fn title_case(form: &str) -> String {
+    form.split('-')
+        .map(|word| {
+            let mut chars = word.chars();
+
+            match chars.next() {
+                Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+                None => String::new(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 /// Every sprite filename ending in a form suffix, such as `raichu-alola`.
@@ -330,5 +374,30 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn formats_names_that_carry_a_form() {
+        let list = List::read();
+
+        assert_eq!(list.format_name("raichu-alola"), "Raichu (Alola)");
+        assert_eq!(list.format_name("charizard-mega-x"), "Charizard (Mega X)");
+        assert_eq!(
+            list.format_name("arcanine-hisui-noble"),
+            "Arcanine (Hisui Noble)"
+        );
+
+        // The longest base name wins, so this is not "Mr (Mime Galar)".
+        assert_eq!(list.format_name("mr-mime-galar"), "Mr. Mime (Galar)");
+    }
+
+    #[test]
+    fn hyphenated_names_are_not_mistaken_for_forms() {
+        let list = List::read();
+
+        assert_eq!(list.format_name("porygon-z"), "Porygon-Z");
+        assert_eq!(list.format_name("ho-oh"), "Ho-Oh");
+        assert_eq!(list.format_name("jangmo-o"), "Jangmo-o");
+        assert_eq!(list.format_name("nidoran-f"), "Nidoran-F");
     }
 }
